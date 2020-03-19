@@ -1,0 +1,19 @@
+{
+  "verificationApi": true,
+  "retries": 3,
+  "maxProductsPerKeyword": 10,
+  "sites": [
+    {
+      "url": "amazon.co.uk",
+      "keywords": [
+        "baby food"
+      ]
+    },
+    {
+      "url": "walmart.com",
+      "keywords": [
+        "baby food"
+      ]
+    }
+  ]
+}

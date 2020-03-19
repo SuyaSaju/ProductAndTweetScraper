@@ -1,0 +1,15 @@
+{
+  "verificationApi": false,
+  "retries": 2,
+  "maxProductsPerKeyword": 100,
+  "sites": [
+    
+    {
+      "url": "amazon.co.uk",
+      "keywords": [
+        "infant nutrition",
+        "baby food"
+      ]
+    }
+  ]
+}

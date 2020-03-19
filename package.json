@@ -1,22 +1,24 @@
 {
-  "name": "product-info-scraper",
-  "version": "1.0.0",
-  "description": "A CLI tool that scrapes the product search results from retail sites and save them to a database",
-  "main": "index.js",
+  "name": "infant-nutrition-product-scraper-cli",
+  "version": "0.0.1",
+  "description": "Scrape search results from retail sites and save them to a database",
+  "main": "src/index.js",
   "scripts": {
-    "start": "node index.js",
+    "start": "node ./src/index.js",
+    "start:docker": "docker-compose up",
+    "start:build": "docker-compose up --build",
+    "lint": "standard \"src/**/*.js\"",
+    "lint:fix": "standard \"src/**/*.js\" --fix",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "author": "tcdeveloper",
+  "author": "Thomas Dornell",
   "license": "ISC",
   "dependencies": {
-    "lodash": "^4.17.15",
     "mongoose": "^5.9.2",
-    "puppeteer": "^2.1.1",
-    "request": "^2.88.2",
-    "winston": "^3.2.1"
+    "puppeteer": "2.1.1"
   },
   "devDependencies": {
-    "eslint": "^6.8.0"
+    "express": "^4.17.1",
+    "standard": "^14.3.1"
   }
 }
