@@ -235,19 +235,19 @@ const getReviews = async (browser, page) => {
       }
     }
   }
-  await page.waitForSelector('[data-hook^="reviews-medley"] [id*="footer"] a')
-  const totalReviews = await page.$eval('[data-hook^="reviews-medley"] [id*="footer"] a', el => Number(el.innerText.split('\n')[0].replace(/[^0-9]/g, '')))
   const goToAmazonDotCom = await page.$eval('[data-hook^="reviews-medley"] [id*="footer"] a', el => el.innerText.split('\n')[0].match('Amazon.com') !== null)
   const correctedBaseUrl = goToAmazonDotCom ? baseUrl.replace('https://www.amazon.' + baseUrl.replace('https://www.amazon.', '').split('/')[0], 'https://www.amazon.com') : baseUrl
   const reviewsBaseUrl = correctedBaseUrl + `/product-reviews/${asin}/`
-  const totalPages = totalReviews / 10
   const filteredReviews = []
   const tempPage = await browser.newPage()
   let ratingResult
-  for (let currentPage = 0; currentPage <= totalPages; currentPage++) {
+  let currentPage = 0
+  while (true) {
     const reviewPageUrl = reviewsBaseUrl + `?pageNumber=${currentPage + 1}`
+    console.log('Processing: ' + reviewPageUrl)
     await tempPage.goto(reviewPageUrl)
     await tempPage.waitForSelector('body')
+
     if (currentPage === 0) {
       await tempPage.waitForSelector('#histogramTable .a-histogram-row', { timeout: 5000 })
       const overallRating = await tempPage.$eval('[data-hook="rating-out-of-text"]', ratingSpan => Number(ratingSpan.innerText.split(' ')[0].replace(',', '')))
@@ -299,6 +299,13 @@ const getReviews = async (browser, page) => {
       })
     })
     filteredReviews.push(...pageReviews)
+    const reviewArray = await tempPage.$eval('[data-hook="cr-filter-info-review-count"]', reviewIndi => reviewIndi.innerText.split(' '))
+    const totalCount = reviewArray[3]
+    const currentCount = reviewArray[1].split('-')[1];
+    if (totalCount === currentCount) {
+      break
+    }
+    currentPage++
   }
   await tempPage.close()
   return {

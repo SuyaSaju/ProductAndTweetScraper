@@ -89,6 +89,7 @@ const scrapeProductDetails = async (keywordsResultsToScrape, template) => {
         try {
           res = (await scrapeProductDetailsFromUrl(browser, page, url, template))
           res.lastUpdated = String(Date.now())
+          res.productUrl = url
           // Conditions to check if product is already in the database from previous runs
           const conditions = []
           if (res.upc) {

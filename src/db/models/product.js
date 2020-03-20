@@ -7,6 +7,7 @@ const ratingSchema = require('./rating').schema
 const productSchema = new Schema({
   scraperRunId: { type: String, required: true },
   lastUpdated: Date,
+  productUrl: String,
   upc: Number,
   sku: String,
   gtin: Number,
