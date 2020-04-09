@@ -1,14 +1,27 @@
 {
   "verificationApi": false,
   "retries": 2,
-  "maxProductsPerKeyword": 100,
+  "maxProductsPerKeyword": 20,
   "sites": [
-    
     {
-      "url": "amazon.co.uk",
+      "url": "amazon.com",
       "keywords": [
-        "infant nutrition",
-        "baby food"
+        "baby food",
+        "infant nutrition"
+      ]
+    },
+    {
+      "url": "walmart.com",
+      "keywords": [
+        "baby food",
+        "infant nutrition"
+      ]
+    },
+    {
+      "url": "firstcry.com",
+      "keywords": [
+        "baby food",
+        "infant nutrition"
       ]
     }
   ]

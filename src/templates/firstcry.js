@@ -36,6 +36,7 @@ const searchProductsByKeywords = async (browser, keywords, maxResultsPerKeyword)
           .map(p => p.querySelector('a'))
           .filter(a => a.href !== 'javascript:void(0);' && a.href.match('firstcry.com/combopack') === null)
           .map(a => a.href)))
+          .map(url => url.split('?')[0])
       .slice(0, maxResultsPerKeyword)
     productUrls.push(keywordUrls)
   }
@@ -51,6 +52,7 @@ const getDetails = async (page) => {
     const id = body.querySelectorAll('#prod_short_info span').length > 0
       ? body.querySelectorAll('#prod_short_info span')[1].innerText.split(' ')[1]
       : document.location.href.match(/(?<=\?proid=)[0-9]*(?=&)/)[0]
+    let priceEl = body.querySelector('#prod_price');
     return {
       id,
       gtin,
@@ -58,7 +60,7 @@ const getDetails = async (page) => {
       name: body.querySelector('.prod-name').innerText,
       description: body.querySelector('.p-prod-desc') ? body.querySelector('.p-prod-desc').innerHTML.split('<div')[0] : '',
       price: {
-        amount: Number(body.querySelector('#prod_price').innerHTML.replace(',', '')),
+        amount: priceEl?Number(priceEl.innerHTML.replace(',', '')):0,
         currency: '₹'
       }
     }
@@ -82,6 +84,7 @@ const getPhotos = async (page) => {
       await page.waitForFunction(isNewPhotoLoaded, { timeout: 5000 })
     } catch (e) {
       // Slider won't open, so return main image and move on
+      console.log('slider not opened or image not changed. returning main image');
       lastPhoto = (await page.$eval('#big-img', bigImg => bigImg.src))
       return [
         {
@@ -98,20 +101,20 @@ const getPhotos = async (page) => {
       url: lastPhoto,
       data: await getPhotoAsBuffer(lastPhoto)
     })
+    console.log('loaded photo');
     // Go to next page, if there is one
     if ((await page.$('.zoom-popup .swiper-button-next:not(.swiper-button-disabled)')) !== null) {
       await page.$eval('.zoom-popup .swiper-button-next', nextButton => nextButton.click())
     } else {
+      console.log('no more images. returning '+photos.length);
       break
     }
   }
   return photos
 }
 const getReviews = async (browser, page) => {
-  const reviewsUrl = await page.$eval('body', body => {
-    const firstCryPid = body.querySelectorAll('#prod_short_info span')[1].innerText.split(' ')[1]
-    return 'https://www.firstcry.com/pdp-review?pid=' + firstCryPid
-  })
+  const reviewsUrl = "http://firstcry.com/reviews"+page.url().split('firstcry.com')[1].split("?")[0].replace(/product-detail$/,'');
+  console.log('going to: '+reviewsUrl);
   await page.goto(reviewsUrl)
   await page.waitForSelector('.div-big-star')
   const ratingLevels = await page.$$eval('[id^="ratestar"]', ratingLevels => ratingLevels.map(el => Number(el.attributes.title.value)))

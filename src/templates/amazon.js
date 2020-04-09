@@ -66,8 +66,9 @@ const initialSetup = async (page) => {
           break
         }
       }
-      await page.waitForFunction('!document.querySelector(\'#glow-ingress-line2\')')
-      await page.waitForFunction('document.querySelector(\'.a-spacing-top-small a\') !== null')
+      await page.waitFor(3000);
+      // await page.waitForFunction('!document.querySelector(\'#glow-ingress-line2\')')
+      // await page.waitForFunction('document.querySelector(\'.a-spacing-top-small a\') !== null')
     }
   }
 }
@@ -124,10 +125,11 @@ const searchProductsByKeywords = async (browser, keywords, maxResultsPerKeyword,
       keywordUrls.push(...productsInPage)
       // Move to next page
       try{
-        await page.waitForSelector('.a-last a', {timeout:5000})
+        await page.waitForSelector('.a-last a', {timeout:10000})
       } catch(e){
         console.log('timeout waiting for last link');
         console.log(keywordUrls.length);
+        break;
       }
       await page.$eval('.a-last a', nextButton => nextButton.click())
       await page.waitForFunction('document.querySelector(\'[data-component-type="s-search-results"] [data-asin]:not(.AdHolder)\') === null')
@@ -143,6 +145,7 @@ const getDetails = async (page) => {
   // Check for multiple variants, if so, choose first one
   if ((await page.$('.imageSwatches')) !== null) {
     await page.$eval('.imageSwatches img', img => img.click())
+    await page.waitFor(3000);
   }
   const result = await page.$eval('body', (body) => {
     const url = document.location.href
@@ -244,6 +247,9 @@ const getReviews = async (browser, page) => {
   let currentPage = 0
   while (true) {
     const reviewPageUrl = reviewsBaseUrl + `?pageNumber=${currentPage + 1}`
+    if (currentPage>=500){
+      break;
+    }
     console.log('Processing: ' + reviewPageUrl)
     await tempPage.goto(reviewPageUrl)
     await tempPage.waitForSelector('body')

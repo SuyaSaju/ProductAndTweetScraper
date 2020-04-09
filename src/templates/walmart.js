@@ -15,6 +15,7 @@ const searchProductsByKeywords = async (browser, keywords, maxResultsPerKeyword)
     }
     const keywordUrls = []
     while (true) {
+      console.log('scraping page');
       await page.waitForSelector('.search-result-gridview-item')
       const productsInPage = await page.$$eval('.search-result-gridview-item', (products) => {
         return products
@@ -33,10 +34,13 @@ const searchProductsByKeywords = async (browser, keywords, maxResultsPerKeyword)
       }
       keywordUrls.push(...productsInPage)
       // Move to next page
-      const totalIFrames = (await page.$$eval('iframe', frames => frames.length))
+      console.log('moving to next page');
+      // const totalIFrames = (await page.$$eval('iframe', frames => frames.length))
       await page.$eval('.paginator-btn.paginator-btn-next', nextButton => nextButton.click())
-      await page.waitForFunction(`document.querySelectorAll('iframe').length > ${totalIFrames}`)
+      await page.waitFor(10000);
+      // await page.waitForFunction(`document.querySelectorAll('iframe').length > ${totalIFrames}`, {timeout:1000000})
     }
+    console.log('finished scraping product urls');
     productUrls.push(keywordUrls)
   }
   // Return all the urls of the products to scrape, grouped by origin keyword
@@ -100,6 +104,7 @@ const getPhotos = async (page) => {
   const photosUrls = await page.$$eval('.slider-list img.prod-alt-image-carousel-image', async (thumbnails) => {
     let lastPhoto = ''
     const urls = []
+    console.log('found thumbnails '+thumbnails.length);
     for (const thumb of thumbnails) {
       thumb.click()
       urls.push(await new Promise(async (resolve, reject) => {
@@ -107,6 +112,7 @@ const getPhotos = async (page) => {
         while (true) {
           if (document.querySelector('.prod-hero-image img').src === lastPhoto) {
             if (counter > 10000) {
+              console.log('Photo UI timeout '+lastPhoto);
               reject(new Error('Photo UI timeout'))
               break
             } else {
@@ -129,6 +135,7 @@ const getPhotos = async (page) => {
       data: await getPhotoAsBuffer(url)
     })
   }
+  console.log('returning photos '+photos.length);
   return photos
 }
 const getReviews = async (browser, page) => {
