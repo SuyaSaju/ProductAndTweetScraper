@@ -1,6 +1,27 @@
 /* eslint-disable no-async-promise-executor */
 const { getPhotoAsBuffer } = require('../utils')
 
+const getBrandsByKeywords = async (browser, keywords) => {
+  const page = await browser.newPage()
+  const brands = []
+  for (const keyword of keywords) {
+    const searchUrl = 'https://www.walmart.com/search/?query=' + keyword.replace(' ', '+')
+    await page.goto(searchUrl)
+    await page.waitForSelector('body')
+    try {
+      await page.waitForSelector('[class="facets-bar"] #Brand', { timeout: 3000 })
+      const brandsInPage = await page.$$eval('[class="facets-bar"] #Brand [class="option-content"]', (items) => {
+        return items.map(item => item.innerText.trim())
+      })
+      brands.push(...(brandsInPage.filter(item => !brands.includes(item))))
+    } catch (e) {
+      console.log(`timeout waiting for brands on page with keywords: ${keyword}`)
+    }
+  }
+
+  return brands
+}
+
 const searchProductsByKeywords = async (browser, keywords, maxResultsPerKeyword) => {
   const page = await browser.newPage()
   const productUrls = []
@@ -15,7 +36,7 @@ const searchProductsByKeywords = async (browser, keywords, maxResultsPerKeyword)
     }
     const keywordUrls = []
     while (true) {
-      console.log('scraping page');
+      console.log('scraping page')
       await page.waitForSelector('.search-result-gridview-item')
       const productsInPage = await page.$$eval('.search-result-gridview-item', (products) => {
         return products
@@ -34,14 +55,20 @@ const searchProductsByKeywords = async (browser, keywords, maxResultsPerKeyword)
       }
       keywordUrls.push(...productsInPage)
       // Move to next page
-      console.log('moving to next page');
+      console.log('moving to next page')
       // const totalIFrames = (await page.$$eval('iframe', frames => frames.length))
       await page.$eval('.paginator-btn.paginator-btn-next', nextButton => nextButton.click())
-      await page.waitFor(10000);
+      await page.waitFor(10000)
       // await page.waitForFunction(`document.querySelectorAll('iframe').length > ${totalIFrames}`, {timeout:1000000})
     }
-    console.log('finished scraping product urls');
-    productUrls.push(keywordUrls)
+    console.log('finished scraping product urls')
+
+    let currentRank = 0
+    const rankedKeywordUrls = []
+    for (const url of keywordUrls) {
+      rankedKeywordUrls.push({ rank: ++currentRank, url })
+    }
+    productUrls[keyword] = rankedKeywordUrls
   }
   // Return all the urls of the products to scrape, grouped by origin keyword
   return productUrls
@@ -104,7 +131,7 @@ const getPhotos = async (page) => {
   const photosUrls = await page.$$eval('.slider-list img.prod-alt-image-carousel-image', async (thumbnails) => {
     let lastPhoto = ''
     const urls = []
-    console.log('found thumbnails '+thumbnails.length);
+    console.log('found thumbnails ' + thumbnails.length)
     for (const thumb of thumbnails) {
       thumb.click()
       urls.push(await new Promise(async (resolve, reject) => {
@@ -112,7 +139,7 @@ const getPhotos = async (page) => {
         while (true) {
           if (document.querySelector('.prod-hero-image img').src === lastPhoto) {
             if (counter > 10000) {
-              console.log('Photo UI timeout '+lastPhoto);
+              console.log('Photo UI timeout ' + lastPhoto)
               reject(new Error('Photo UI timeout'))
               break
             } else {
@@ -135,7 +162,7 @@ const getPhotos = async (page) => {
       data: await getPhotoAsBuffer(url)
     })
   }
-  console.log('returning photos '+photos.length);
+  console.log('returning photos ' + photos.length)
   return photos
 }
 const getReviews = async (browser, page) => {
@@ -215,6 +242,7 @@ const getReviews = async (browser, page) => {
 
 module.exports = {
   searchProductsByKeywords,
+  getBrandsByKeywords,
   getDetails,
   getDescriptionDetail,
   getPhotos,

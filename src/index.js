@@ -3,9 +3,11 @@ const puppeteer = require('puppeteer')
 const puppeteerConfig = require('./config/puppeteer-config')
 const connectDB = require('./db/connect')
 const Product = require('./db/models/product').model
+const Brand = require('./db/models/brand').model
 
 // Process configuration file
 let sites, maxProductsPerKeyword, enableVerificationApi, retries
+const urlKeywordRankMap = {}
 if (process.env.CONFIG_FILE && !isNaN(Number(process.env.CONFIG_FILE))) {
   const configFileNumber = Number(process.env.CONFIG_FILE)
   try {
@@ -72,6 +74,12 @@ const scrapeProductDetailsFromUrl = async (browser, page, url, template) => {
   return productDetails
 }
 
+const saveBrands = async (brands) => {
+  for (const brand of brands) {
+    await Brand.updateOne({ name: brand }, { $set: { name: brand } }, { upsert: true })
+  }
+}
+
 const scrapeProductDetails = async (keywordsResultsToScrape, template) => {
   // Use current timestamp as ID for this run of the scraping tool
   const scraperRunId = String(Date.now())
@@ -79,9 +87,21 @@ const scrapeProductDetails = async (keywordsResultsToScrape, template) => {
   const page = await browser.newPage()
   let totalProductsScraped = 0
   let currentProduct = 1
-  const totalResults = keywordsResultsToScrape.reduce((sum, kR) => sum + kR.reduce((sum, url) => sum + 1, 0), 0)
-  for (const keywordResults of keywordsResultsToScrape) {
-    for (const url of keywordResults) {
+
+  let totalResults = 0
+  for (const keyword of Object.keys(keywordsResultsToScrape)) {
+    const rankedProductUrls = keywordsResultsToScrape[keyword]
+    const keywordResults = rankedProductUrls.map(item => item.url)
+    totalResults += keywordResults.length
+
+    for (const item of rankedProductUrls) {
+      const url = item.url
+      const rank = item.rank
+      if (!urlKeywordRankMap[url]) {
+        urlKeywordRankMap[url] = {}
+      }
+      urlKeywordRankMap[url][keyword] = rank
+
       console.log()
       console.log(`Scraping product ${currentProduct} of ${totalResults}`)
       let res
@@ -90,6 +110,7 @@ const scrapeProductDetails = async (keywordsResultsToScrape, template) => {
           res = (await scrapeProductDetailsFromUrl(browser, page, url, template))
           res.lastUpdated = String(Date.now())
           res.productUrl = url
+          res.keywordRank = urlKeywordRankMap[url]
           // Conditions to check if product is already in the database from previous runs
           const conditions = []
           if (res.upc) {
@@ -107,7 +128,10 @@ const scrapeProductDetails = async (keywordsResultsToScrape, template) => {
           let updatedProduct = null
           if (conditions.length > 0) {
             // Update a product if any of the unique identifiers coincide and the current details of the database are from a past run
-            updatedProduct = await Product.findOneAndUpdate({ scraperRunId: { $ne: scraperRunId }, $or: conditions }, res)
+            updatedProduct = await Product.findOneAndUpdate({
+              scraperRunId: { $ne: scraperRunId },
+              $or: conditions
+            }, res)
           }
           // If the product didn't exist from previous runs, create it now
           if (updatedProduct === null) {
@@ -131,6 +155,7 @@ const scrapeProductDetails = async (keywordsResultsToScrape, template) => {
       currentProduct += 1
     }
   }
+
   await browser.close()
   return totalProductsScraped
 }
@@ -153,10 +178,15 @@ const mainProcess = async () => {
     const baseSite = site.url.split('.')[0]
     const template = require('./templates/' + baseSite)
 
-    let urlsByKeyword
+    let urlsByKeyword, brandsByKeyword
     for (const attempt in RETRIES_ARRAY) {
       try {
         console.log(`Scraping search results from "${site.url}"...`)
+
+        console.log('Scraping brands...')
+        brandsByKeyword = (await template.getBrandsByKeywords(browser, site.keywords, site.url.replace(/\w*./, '')))
+        await saveBrands(brandsByKeyword)
+
         urlsByKeyword = (await template.searchProductsByKeywords(browser, site.keywords, maxProductsPerKeyword, site.url.replace(/\w*./, '')))
         console.log('Scraping products...')
         totalProductsScraped += await scrapeProductDetails(urlsByKeyword, template)

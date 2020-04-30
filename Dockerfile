@@ -20,4 +20,4 @@ COPY . /srv/app
 
 RUN npm install
 
-CMD npm start 
+CMD npm start && npm run branding

@@ -2,6 +2,10 @@
 // The "page" argument for all functions is a product page wrapped with Puppeteer
 
 const searchProductsByKeywords = async (browser, keywords, maxResultsPerKeyword) => {
+  return {}
+}
+
+const getBrandsByKeywords = async (browser, keywords, domainExtension) => {
   return []
 }
 
@@ -47,6 +51,7 @@ const getReviews = async (browser, page) => {
 module.exports = {
   searchProductsByKeywords,
   initialSetup,
+  getBrandsByKeywords,
   getDetails,
   getDescriptionDetail,
   getPhotos,

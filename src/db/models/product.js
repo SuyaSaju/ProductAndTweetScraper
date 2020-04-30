@@ -13,13 +13,15 @@ const productSchema = new Schema({
   gtin: Number,
   asin: String,
   source: String,
+  brand: String,
   name: String,
   description: String,
   descriptionDetail: String,
   price: Object,
   photos: [photoSchema],
   reviews: [reviewSchema],
-  rating: ratingSchema
+  rating: ratingSchema,
+  keywordRank: Object
 })
 
 module.exports = {

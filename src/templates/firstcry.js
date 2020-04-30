@@ -1,5 +1,27 @@
 const { getPhotoAsBuffer } = require('../utils')
 
+const getBrandsByKeywords = async (browser, keywords) => {
+  const page = await browser.newPage()
+  const brands = []
+  for (const keyword of keywords) {
+    const searchUrl = 'https://www.firstcry.com/search?q=' + keyword.replace(' ', '+')
+    await page.goto(searchUrl)
+    await page.waitForSelector('body')
+    try {
+      await page.waitForSelector('#fltbrnd [class*="brandflt"]', { timeout: 3000 })
+      const brandsInPage = await page.$$eval('#fltbrnd [class*="brandflt"] [class*="txt"]', (items) => {
+        return items.map(item => item.innerText.trim())
+      })
+      brands.push(...(brandsInPage.filter(item => !brands.includes(item))))
+    } catch (e) {
+      console.log(e)
+      console.log(`timeout waiting for brands on page with keywords: ${keyword}`)
+    }
+  }
+
+  return brands
+}
+
 const searchProductsByKeywords = async (browser, keywords, maxResultsPerKeyword) => {
   // FirstCry is different to Amazon and Walmart, the all the search results appear in the same page as the user scrolls down.
   // So, the strategy to scrape the products is to scroll until the message that no more products are available appears, and then scan the whole page.
@@ -25,20 +47,24 @@ const searchProductsByKeywords = async (browser, keywords, maxResultsPerKeyword)
       await page.evaluate("window.scrollTo(0,document.querySelectorAll('.list_block')[document.querySelectorAll('.list_block').length - 1].offsetTop);")
       // Wait for more products to load
       try {
-        await page.waitForFunction(`Array.from(document.querySelectorAll('.list_block')).map(p => p.querySelector('a')).filter(a => a.href !== 'javascript:void(0);').length > ${currentlyLoadedProducts}`,{timeout: 6000})
-      }catch(e){
-        console.log('couldnt load more products');
+        await page.waitForFunction(`Array.from(document.querySelectorAll('.list_block')).map(p => p.querySelector('a')).filter(a => a.href !== 'javascript:void(0);').length > ${currentlyLoadedProducts}`, { timeout: 6000 })
+      } catch (e) {
+        console.log('couldnt load more products')
       }
     }
     const keywordUrls = (
-      await page.$$eval('.list_block', products =>
-        products
-          .map(p => p.querySelector('a'))
-          .filter(a => a.href !== 'javascript:void(0);' && a.href.match('firstcry.com/combopack') === null)
-          .map(a => a.href)))
-          .map(url => url.split('?')[0])
+      await page.$$eval('.list_block', products => products
+        .map(p => p.querySelector('a'))
+        .filter(a => a.href !== 'javascript:void(0);' && a.href.match('firstcry.com/combopack') === null)
+        .map(a => a.href))).map(url => url.split('?')[0])
       .slice(0, maxResultsPerKeyword)
-    productUrls.push(keywordUrls)
+
+    let currentRank = 0
+    const rankedKeywordUrls = []
+    for (const url of keywordUrls) {
+      rankedKeywordUrls.push({ rank: ++currentRank, url })
+    }
+    productUrls[keyword] = rankedKeywordUrls
   }
   // Return all the urls of the products to scrape, grouped by origin keyword
   return productUrls
@@ -52,7 +78,7 @@ const getDetails = async (page) => {
     const id = body.querySelectorAll('#prod_short_info span').length > 0
       ? body.querySelectorAll('#prod_short_info span')[1].innerText.split(' ')[1]
       : document.location.href.match(/(?<=\?proid=)[0-9]*(?=&)/)[0]
-    let priceEl = body.querySelector('#prod_price');
+    const priceEl = body.querySelector('#prod_price')
     return {
       id,
       gtin,
@@ -60,7 +86,7 @@ const getDetails = async (page) => {
       name: body.querySelector('.prod-name').innerText,
       description: body.querySelector('.p-prod-desc') ? body.querySelector('.p-prod-desc').innerHTML.split('<div')[0] : '',
       price: {
-        amount: priceEl?Number(priceEl.innerHTML.replace(',', '')):0,
+        amount: priceEl ? Number(priceEl.innerHTML.replace(',', '')) : 0,
         currency: '₹'
       }
     }
@@ -84,7 +110,7 @@ const getPhotos = async (page) => {
       await page.waitForFunction(isNewPhotoLoaded, { timeout: 5000 })
     } catch (e) {
       // Slider won't open, so return main image and move on
-      console.log('slider not opened or image not changed. returning main image');
+      console.log('slider not opened or image not changed. returning main image')
       lastPhoto = (await page.$eval('#big-img', bigImg => bigImg.src))
       return [
         {
@@ -101,20 +127,20 @@ const getPhotos = async (page) => {
       url: lastPhoto,
       data: await getPhotoAsBuffer(lastPhoto)
     })
-    console.log('loaded photo');
+    console.log('loaded photo')
     // Go to next page, if there is one
     if ((await page.$('.zoom-popup .swiper-button-next:not(.swiper-button-disabled)')) !== null) {
       await page.$eval('.zoom-popup .swiper-button-next', nextButton => nextButton.click())
     } else {
-      console.log('no more images. returning '+photos.length);
+      console.log('no more images. returning ' + photos.length)
       break
     }
   }
   return photos
 }
 const getReviews = async (browser, page) => {
-  const reviewsUrl = "http://firstcry.com/reviews"+page.url().split('firstcry.com')[1].split("?")[0].replace(/product-detail$/,'');
-  console.log('going to: '+reviewsUrl);
+  const reviewsUrl = 'http://firstcry.com/reviews' + page.url().split('firstcry.com')[1].split('?')[0].replace(/product-detail$/, '')
+  console.log('going to: ' + reviewsUrl)
   await page.goto(reviewsUrl)
   await page.waitForSelector('.div-big-star')
   const ratingLevels = await page.$$eval('[id^="ratestar"]', ratingLevels => ratingLevels.map(el => Number(el.attributes.title.value)))
@@ -167,6 +193,7 @@ const getReviews = async (browser, page) => {
 
 module.exports = {
   searchProductsByKeywords,
+  getBrandsByKeywords,
   getDetails,
   getDescriptionDetail,
   getPhotos,

@@ -66,16 +66,50 @@ const initialSetup = async (page) => {
           break
         }
       }
-      await page.waitFor(3000);
+      await page.waitFor(3000)
       // await page.waitForFunction('!document.querySelector(\'#glow-ingress-line2\')')
       // await page.waitForFunction('document.querySelector(\'.a-spacing-top-small a\') !== null')
     }
   }
 }
 
+const getBrandsByKeywords = async (browser, keywords, domainExtension) => {
+  const page = await browser.newPage()
+  const brands = []
+
+  if (!getZipCodeFromExtension(domainExtension)) {
+    console.log(`The site "amazon.${domainExtension}" is not supported by this tool.`)
+    console.log('Automated scraping is only available for the following Amazon sites:')
+    console.log('"amazon.com", "amazon.co.uk", "amazon.ca", "amazon.in", "amazon.sg" and "amazon.ae"')
+    process.exit(0)
+  }
+  let isInitialized = false
+  for (const keyword of keywords) {
+    const searchUrl = 'https://www.amazon.' + domainExtension + '/s?k=' + keyword.replace(' ', '+')// + '&bbn=16225005011&rh=n%3A%2116225005011%2Cn%3A166777011'; // Search only in "Baby > Feeding"
+    await page.goto(searchUrl)
+    await page.waitForSelector('body')
+    if (!isInitialized) {
+      await initialSetup(page)
+      isInitialized = true
+    }
+
+    try {
+      await page.waitForSelector('#brandsRefinements', { timeout: 3000 })
+      const brandsInPage = await page.$$eval('#brandsRefinements [class="a-list-item"]', (items) => {
+        return items.map(item => item.innerText.trim())
+      })
+      brands.push(...(brandsInPage.filter(item => !brands.includes(item))))
+    } catch (e) {
+      console.log(`timeout waiting for brands on page with keywords: ${keyword}`)
+    }
+  }
+
+  return brands
+}
+
 const searchProductsByKeywords = async (browser, keywords, maxResultsPerKeyword, domainExtension) => {
   const page = await browser.newPage()
-  const productUrls = []
+  const productUrls = {}
   if (!getZipCodeFromExtension(domainExtension)) {
     console.log(`The site "amazon.${domainExtension}" is not supported by this tool.`)
     console.log('Automated scraping is only available for the following Amazon sites:')
@@ -96,6 +130,7 @@ const searchProductsByKeywords = async (browser, keywords, maxResultsPerKeyword,
       productUrls.push([])
       continue
     }
+
     const keywordUrls = []
     while (true) {
       await page.waitForSelector('[data-component-type="s-search-results"] [data-asin]:not(.AdHolder)')
@@ -124,18 +159,25 @@ const searchProductsByKeywords = async (browser, keywords, maxResultsPerKeyword,
       }
       keywordUrls.push(...productsInPage)
       // Move to next page
-      try{
-        await page.waitForSelector('.a-last a', {timeout:10000})
-      } catch(e){
-        console.log('timeout waiting for last link');
-        console.log(keywordUrls.length);
-        break;
+      try {
+        await page.waitForSelector('.a-last a', { timeout: 10000 })
+      } catch (e) {
+        console.log('timeout waiting for last link')
+        console.log(keywordUrls.length)
+        break
       }
       await page.$eval('.a-last a', nextButton => nextButton.click())
       await page.waitForFunction('document.querySelector(\'[data-component-type="s-search-results"] [data-asin]:not(.AdHolder)\') === null')
     }
-    productUrls.push(keywordUrls)
+
+    let currentRank = 0
+    const rankedKeywordUrls = []
+    for (const url of keywordUrls) {
+      rankedKeywordUrls.push({ rank: ++currentRank, url })
+    }
+    productUrls[keyword] = rankedKeywordUrls
   }
+
   // Return all the urls of the products to scrape, grouped by origin keyword
   return productUrls
 }
@@ -145,7 +187,7 @@ const getDetails = async (page) => {
   // Check for multiple variants, if so, choose first one
   if ((await page.$('.imageSwatches')) !== null) {
     await page.$eval('.imageSwatches img', img => img.click())
-    await page.waitFor(3000);
+    await page.waitFor(3000)
   }
   const result = await page.$eval('body', (body) => {
     const url = document.location.href
@@ -247,8 +289,8 @@ const getReviews = async (browser, page) => {
   let currentPage = 0
   while (true) {
     const reviewPageUrl = reviewsBaseUrl + `?pageNumber=${currentPage + 1}`
-    if (currentPage>=500){
-      break;
+    if (currentPage >= 500) {
+      break
     }
     console.log('Processing: ' + reviewPageUrl)
     await tempPage.goto(reviewPageUrl)
@@ -307,7 +349,7 @@ const getReviews = async (browser, page) => {
     filteredReviews.push(...pageReviews)
     const reviewArray = await tempPage.$eval('[data-hook="cr-filter-info-review-count"]', reviewIndi => reviewIndi.innerText.split(' '))
     const totalCount = reviewArray[3]
-    const currentCount = reviewArray[1].split('-')[1];
+    const currentCount = reviewArray[1].split('-')[1]
     if (totalCount === currentCount) {
       break
     }
@@ -322,6 +364,7 @@ const getReviews = async (browser, page) => {
 
 module.exports = {
   searchProductsByKeywords,
+  getBrandsByKeywords,
   getDetails,
   getDescriptionDetail,
   getPhotos,
