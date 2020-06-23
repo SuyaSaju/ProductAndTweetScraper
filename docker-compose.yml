@@ -5,6 +5,8 @@ services:
     build: .
     environment:
       - CONFIG_FILE=${CONFIG_FILE}
+      - CONSUMER_KEY=${CONSUMER_KEY}
+      - CONSUMER_SECRET=${CONSUMER_SECRET}
     networks:
       - app_net
     depends_on:

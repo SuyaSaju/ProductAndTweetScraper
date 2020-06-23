@@ -20,4 +20,4 @@ COPY . /srv/app
 
 RUN npm install
 
-CMD npm start && npm run branding
+CMD npm start && npm run branding && npm run collect-tweets

@@ -6,6 +6,8 @@
   "scripts": {
     "start": "node ./src/index.js",
     "branding": "node ./src/branding.js",
+    "collect-tweets": "node ./src/collect-tweets.js",
+    "verify-tweets": "node ./src/tweets-verification-api.js",
     "start:docker": "docker-compose up",
     "start:build": "docker-compose up --build",
     "lint": "standard \"src/**/*.js\"",
@@ -15,8 +17,10 @@
   "author": "Thomas Dornell",
   "license": "ISC",
   "dependencies": {
+    "axios": "^0.19.2",
     "mongoose": "^5.9.2",
-    "puppeteer": "2.1.1"
+    "puppeteer": "2.1.1",
+    "twitter": "^1.7.1"
   },
   "devDependencies": {
     "express": "^4.17.1",

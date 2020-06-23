@@ -1,5 +1,5 @@
 module.exports = {
-  headless: false,
+  headless: true,
   executablePath: process.env.CHROME_BIN || null,
   args: [
     '--no-sandbox',

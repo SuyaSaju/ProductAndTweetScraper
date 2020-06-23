@@ -21,7 +21,14 @@ const productSchema = new Schema({
   photos: [photoSchema],
   reviews: [reviewSchema],
   rating: ratingSchema,
-  keywordRank: Object
+  keywordRank: Object,
+  topics: {
+    positives: [String],
+    negatives: [String]
+  },
+  socialMedia: {
+    twitter: [String]
+  }
 })
 
 module.exports = {
