@@ -17,7 +17,7 @@
   "author": "Thomas Dornell",
   "license": "ISC",
   "dependencies": {
-    "axios": "^0.19.2",
+    "axios": "^0.21.1",
     "mongoose": "^5.9.2",
     "puppeteer": "2.1.1",
     "twitter": "^1.7.1"
