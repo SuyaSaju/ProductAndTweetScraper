@@ -23,7 +23,7 @@
     "twitter": "^1.7.1"
   },
   "devDependencies": {
-    "express": "^4.17.1",
+    "express": "^4.17.3",
     "standard": "^14.3.1"
   }
 }
